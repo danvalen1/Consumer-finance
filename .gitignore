@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Files/data too large 
+data/scfp2019.excel.zip
