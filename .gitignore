@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # Files/data too large 
-data/scfp2019.excel.zip
+data/scf2019.ascii
