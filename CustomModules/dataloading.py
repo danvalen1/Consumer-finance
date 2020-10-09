@@ -23,7 +23,7 @@ def URL_DL_ZIP(targetzip, targetdir, url):
 def SCF2019_load_stata(targetzip, targetdir):
     # Saves SCF2019 data as stata file
 
-    # URL for SCF 2019 Stata Zip file using revised weights
+    # URL for SCF 2019 Stata Zip file
     url = 'https://www.federalreserve.gov/econres/files/scf2019s.zip'
         
     # Extract files and return locations  
@@ -33,7 +33,7 @@ def SCF2019_load_stata(targetzip, targetdir):
 
 
 def SCF2019_weights_load(targetzip, targetdir):
-    # Saves SCF2019 data as stata file
+    # Saves SCF2019 data weights as stata file
 
     # URL for SCF 2019 Stata Zip file using revised weights
     url = 'https://www.federalreserve.gov/econres/files/scf2019rw1s.zip'
