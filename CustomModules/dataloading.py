@@ -21,11 +21,13 @@ def URL_DL_ZIP(targetzip, targetdir, url):
     return file_locs
 
 
+
 def SCF2019_load_stata(targetdir, series):
     #insert a list of variables or 'None' to get all
   
     # Saves SCF2019 data as stata file
     targetzip = targetdir + 'SCF2019_data_public.zip'
+
     url = 'https://www.federalreserve.gov/econres/files/scf2019s.zip'
         
     # Return list of locations of extracted files   
@@ -37,6 +39,7 @@ def SCF2019_load_stata(targetdir, series):
         columns=series)
     
     return SCF2019_data
+
 
 
 def SCF2019_weights_load(targetdir):
