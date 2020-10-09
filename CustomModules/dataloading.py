@@ -53,57 +53,83 @@ def SCF2019_weights_load(targetdir):
     
     return SCF2019_weights
 
-
-def UI_demo_data_to_df(targetdir):
-    # Saves UI demographic data from DOL as df
-    targetcsv = targetdir + 'UI_data.csv'
-    url = 'https://oui.doleta.gov/unemploy/csv/ar203.csv'
-
-    # Saving csv
-    urllib.request.urlretrieve(url, targetcsv)
+def CPS_raw(targetdir, list_of_mmmyy, series):
     
-    # Read as dataframe
-    df = pd.read_csv(targetcsv)
+    ## Retrieves variables of interest
+    dd_sel_var = CPS_vars(targetdir, series)
     
+    
+    ## Stack together data with series of intereest
+    dfs=[]
+    
+    # loops through data to get individual dataframes
+    for mmmyy in list_of_mmmyy:
+        # converts input to lowercase
+        mmmyy = mmmyy.lower()
+            
+        # Saves CPS data for given month
+        targetfile = targetdir + f'CPS-{mmmyy}.zip'
+
+        # URL for given month
+        url = f'https://www2.census.gov/programs-surveys/cps/datasets/2000/basic/{mmmyy}pub.zip'
+
+        # Extract files and return locations  
+        file_locs = URL_DL_ZIP(targetfile, targetdir, url)
+
+        # Convert raw data into a list of tuples
+        data_final = [tuple(int(line[i[1]:i[2]]) for i in dd_sel_var) 
+                for line in open(file_locs[0], 'rb')]
+
+        # Convert to pandas dataframe, add variable ids as heading
+        CPS_df = pd.DataFrame(data_final, columns=[v[0] for v in dd_sel_var])
+            
+        dfs.append(CPS_df)
+    
+    df = pd.concat(dfs)
+     
     return df
 
-
-def CPS_Apr2020_raw(targetdir):
-    # Saves CPS Apr 2020 data
-    targetfile = targetdir + 'CPS-Apr-2020.zip'
-
-    # URL for CPS Apr 2020 survey
-    url = 'https://www2.census.gov/programs-surveys/cps/datasets/2020/basic/apr20pub.zip'
-
-    # Extract files and return locations  
-    file_locs = URL_DL_ZIP(targetfile, targetdir, url)
+def CPS_vars(targetdir, series):
     
-    # Data dictionary 
-    dd_file = 'data/2020_Basic_CPS_Public_Use_Record_Layout_plus_IO_Code_list.txt'
+    ## Retrieves variables of interest
+    # Download and open data dictionary 
+    url = 'https://www2.census.gov/programs-surveys/cps/datasets/2020/basic/2020_Basic_CPS_Public_Use_Record_Layout_plus_IO_Code_list.txt'
+    dd_file = targetdir + '2020_01_CPS_DataDict.txt'
+    urllib.request.urlretrieve(url, dd_file)
     dd_full = open(dd_file, 'r', encoding='iso-8859-1').read()
 
     # Regular expression finds rows with variable location details
     p = re.compile('\n(\w+)\s+(\d+)\s+(.*?)\t+.*?(\d\d*).*?(\d\d+)')
+    data = p.findall(dd_full)
     
-    # Import vars 
-    df = NBER_CPS_vars(targetdir)
-    series = df['var'].tolist()
+    series_final = []
+    if series == None:
+        # Import all vars as pd.df
+        df_vars = pd.DataFrame(data, 
+                               columns = ['name', 
+                                          'size', 
+                                          'description', 
+                                          'loc_range_min', 
+                                          'loc_range_max'])
+        # Clean df and convert into list
+        df_vars = df_vars[
+            (df_vars.name != 'FILLER') 
+            & (df_vars.name != 'PADDING')]
+        
+        series_final = df_vars['name'].tolist()
+        
+    else:
+        # Import only series vars
+        for i in series:
+            series_final.append(i.upper())
 
     # Keep adjusted results for series of interest
     dd_sel_var = [(i[0], int(i[3])-1, int(i[4])) 
-                  for i in p.findall(dd_full) if i[0] in series]
+                  for i in p.findall(dd_full) if i[0] in series_final]
 
-    # Convert raw data into a list of tuples
-    data = [tuple(int(line[i[1]:i[2]]) for i in dd_sel_var) 
-            for line in open(file_locs[0], 'rb')]
+    return dd_sel_var
 
-    # Convert to pandas dataframe, add variable ids as heading
-    CPS_df = pd.DataFrame(data, columns=[v[0] for v in dd_sel_var])
-    
-     
-    return CPS_df
-
-
+# UNUSED FUNCS
 def NBER_CPS_vars(targetdir):
     
     # Saves CPS vars from NBER as TXT and into pandas.df
@@ -127,3 +153,18 @@ def NBER_CPS_vars(targetdir):
     df['var'] = [x.upper() for x in df['var']]
     
     return df
+
+def UI_demo_data_to_df(targetdir):
+    # Saves UI demographic data from DOL as df
+    targetcsv = targetdir + 'UI_data.csv'
+    url = 'https://oui.doleta.gov/unemploy/csv/ar203.csv'
+
+    # Saving csv
+    urllib.request.urlretrieve(url, targetcsv)
+    
+    # Read as dataframe
+    df = pd.read_csv(targetcsv)
+    
+    return df
+
+
