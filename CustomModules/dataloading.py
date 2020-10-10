@@ -56,7 +56,7 @@ def SCF2019_weights_load(targetdir):
     
     return SCF2019_weights
 
-def CPS_raw(targetdir, list_of_mmmyy, series):
+def CPS_2020_raw(targetdir, list_of_mmmyy, series):
     
     ## Retrieves variables of interest
     dd_sel_var = CPS_vars(targetdir, series)
@@ -74,7 +74,7 @@ def CPS_raw(targetdir, list_of_mmmyy, series):
         targetfile = targetdir + f'CPS-{mmmyy}.zip'
 
         # URL for given month
-        url = f'https://www2.census.gov/programs-surveys/cps/datasets/2000/basic/{mmmyy}pub.zip'
+        url = f'https://www2.census.gov/programs-surveys/cps/datasets/2020/basic/{mmmyy}pub.zip'
 
         # Extract files and return locations  
         file_locs = URL_DL_ZIP(targetfile, targetdir, url)
