@@ -2,6 +2,11 @@ import urllib.request
 import zipfile
 import pandas as pd
 import re
+import os
+import sys
+module_path = os.path.abspath(os.path.join(os.pardir, os.pardir))
+if module_path not in sys.path:
+    sys.path.append(module_path)
 
 def URL_DL_ZIP(targetzip, targetdir, url):
     # Saving Zip file
@@ -20,7 +25,12 @@ def URL_DL_ZIP(targetzip, targetdir, url):
     
     return file_locs
 
-
+def RepresentsInt(s):
+    try: 
+        int(s)
+        return False
+    except ValueError:
+        return True
 
 def SCF_load_stata(targetdir, year, series):
     #insert a list of variables or 'None' to get all
@@ -80,16 +90,25 @@ def CPS_raw(targetdir, list_of_mmmyyyy, series):
 
         # Extract files and return locations  
         file_locs = URL_DL_ZIP(targetfile, targetdir, url)
+        
+                
+                
 
         # Convert raw data into a list of tuples
-        data_final = [tuple(int(line[i[1]:i[2]])
-                            # Account for insertion of * in .dat file HUSPNISH (2007)
-                            if line[i[1]:i[2]] != bytes('* ', encoding='iso-8859-1') 
-                            else -1
-                            for i in dd_sel_var
-                           ) 
-                      for line in open(file_locs[0], 
-                                             'rb')]
+        data_final = [tuple
+                      (
+                          (-1
+                           # Account for insertion of chars in .dat file 
+                           if 
+                           (
+                               RepresentsInt(line[i[1]:i[2]])
+                           )
+                           else int(line[i[1]:i[2]])
+                              
+                          )
+                          for i in dd_sel_var
+                      ) 
+                      for line in open(file_locs[0], 'rb')]
 
         # Convert to pandas dataframe, add variable ids as heading
         CPS_df = pd.DataFrame(data_final, columns=[v[0] for v in dd_sel_var])
@@ -141,6 +160,14 @@ def CPS_vars(targetdir, mmmyyyy, series):
         url = 'https://www2.census.gov/programs-surveys/cps/datasets/2009/basic/jan09dd.txt'
     elif yyyy > 2006:
         url = 'https://www2.census.gov/programs-surveys/cps/datasets/2007/basic/jan07dd.txt'
+    elif (((yyyy == 2005) & (monthdict[mmm] > 7))
+          | yyyy > 2005):
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2005/basic/augnov05dd.txt'
+    elif ((yyyy == 2004) & (monthdict[mmm] > 4)
+         | (yyyy == 2005) & (monthdict[mmm] < 8)):
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2004/basic/may04dd.txt'
+    elif yyyy > 2002:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2003/basic/jan03dd.txt'
     elif yyyy > 1997:
         url = 'https://www2.census.gov/programs-surveys/cps/datasets/2002/basic/jan98dd.asc'
         
@@ -202,19 +229,25 @@ def CPS_vars(targetdir, mmmyyyy, series):
     
     ## Create list of tuples with vars and locs to retrieve from .dat
     dd_sel_var = []
+    adj_above_2002 = -1 if yyyy > 2002 else 0
+    adj_below_2003 = -1 if yyyy < 2003 else 0
     for i in p.findall(dd_full):
-        if yyyy > 1998:
-            loc = [int(i[1]), int(i[2])]
+        if yyyy < 2003:
+            loc = [int(i[2]), int(i[2]) + int(i[1])]
         else:
-            loc = [int(i[3]), int(i[4])] 
+            loc = [int(i[3]), int(i[4])]
+            
         
-               
         if i[0] in series_final:
-            ## Account for certain data dict errors
+            ## Account for certain data dict nits
             if loc[0] == loc[1]:
-                dd_sel_var.append((i[0], loc[0], loc[1]+2))
+                dd_sel_var.append((i[0], 
+                                   loc[0], 
+                                   loc[1]+2))
             else:
-                dd_sel_var.append((i[0], loc[0]-1, loc[1]))
+                dd_sel_var.append((i[0], 
+                                   loc[0]+(adj_below_2003)+(adj_above_2002), 
+                                   loc[1]+(adj_below_2003)))
                     
                                   
                                   
