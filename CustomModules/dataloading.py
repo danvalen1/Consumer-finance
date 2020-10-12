@@ -33,24 +33,60 @@ def RepresentsInt(s):
         return True
 
 def SCF_load_stata(targetdir, year, series):
-    #insert a list of variables or 'None' to get all
-  
-    # Saves SCF2019 data as stata file
+    ## Saves SCF data from 1989 as df
+    # Set target zip file and relevant url
     targetzip = targetdir + f'SCF{year}_data_public.zip'
-
-    url = f'https://www.federalreserve.gov/econres/files/scf{year}s.zip'
+    panel_string = 'p' if ((int(year)%3) != 0) else ''
+    year = str(year)[-2:] if year < 2002 else year
+    url = f'https://www.federalreserve.gov/econres/files/scf{year}{panel_string}s.zip'
         
     # Return list of locations of extracted files   
     SCF_file_locs = URL_DL_ZIP(targetzip, targetdir, url) 
         
     # Read into pandas df    
-    SCF2019_data = pd.read_stata(
+    SCF_data = pd.read_stata(
         SCF_file_locs[0],
+        #insert a list of variables or 'None' to get all
         columns=series)
     
-    return SCF2019_data
+    return SCF_data
 
+def SHED_load_stata(targetdir, year, series, month_supp):
+    ## Saves SHED data from 2013 as df
+    # Set target zip file and relevant url
+    targetzip = targetdir + f'SHED{year}_data_public.zip'
+    if (month_supp == 7) & (int(year) == 2020):
+        supp = True
+        url = f'https://www.federalreserve.gov/consumerscommunities/files/SHED_public_use_data_2019_supplemental_survey_sept_2020_(STATA).zip'
+    elif (month_supp == 4) & (int(year) == 2020):
+        supp = True
+        url = f'https://www.federalreserve.gov/consumerscommunities/files/SHED_public_use_data_2019_supplemental_survey_april_2020_(STATA).zip'
+    else:
+        supp = False
+        url = f'https://www.federalreserve.gov/consumerscommunities/files/SHED_public_use_data_{year}_(STATA).zip'
+        
+    # Return list of locations of extracted files   
+    SHED_file_locs = URL_DL_ZIP(targetzip, targetdir, url) 
+        
+    # Read into pandas df    
+    SHED_data = pd.read_stata(
+        SHED_file_locs[0],
+        #insert a list of variables or 'None' to get all
+        columns=series)
+    
+    # Add month/year data
+    SHED_data['year'] = [int(year) for i in range(SHED_data.shape[0])]
+    if supp == True:
+        SHED_data['month'] = [month_supp for i in range(SHED_data.shape[0])]
+        SHED_data['supp'] = [1 for i in range(SHED_data.shape[0])]
+    else:
+        ## for non-supplement data surveys conducted in oct/nov.
+        SHED_data['month'] = [11 for i in range(SHED_data.shape[0])]
+        SHED_data['supp'] = [0 for i in range(SHED_data.shape[0])]
+        
 
+        
+    return SHED_data
 
 def SCF2019_weights_load(targetdir):
     # Saves SCF2019 data revised weights as stata file 
@@ -68,7 +104,7 @@ def SCF2019_weights_load(targetdir):
 
 def CPS_raw(targetdir, list_of_mmmyyyy, series):
     
-    ### Retrieves monthly CPS data
+    ### Retrieves monthly CPS data from 1998 on
     
     
     # Begin stack of data with series of intereest
@@ -122,7 +158,7 @@ def CPS_raw(targetdir, list_of_mmmyyyy, series):
 
 def CPS_vars(targetdir, mmmyyyy, series):
     
-    ### Retrieves variables of interest
+    ### Retrieves variables of interest from 1998 on
     
     ## Download relevant data dictionary 
     # Parsing out mmmyyyy for use
