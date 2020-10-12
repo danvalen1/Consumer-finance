@@ -22,13 +22,13 @@ def URL_DL_ZIP(targetzip, targetdir, url):
 
 
 
-def SCF2019_load_stata(targetdir, series):
+def SCF_load_stata(targetdir, year, series):
     #insert a list of variables or 'None' to get all
   
     # Saves SCF2019 data as stata file
-    targetzip = targetdir + 'SCF2019_data_public.zip'
+    targetzip = targetdir + f'SCF{year}_data_public.zip'
 
-    url = 'https://www.federalreserve.gov/econres/files/scf2019s.zip'
+    url = f'https://www.federalreserve.gov/econres/files/scf{year}s.zip'
         
     # Return list of locations of extracted files   
     SCF_file_locs = URL_DL_ZIP(targetzip, targetdir, url) 
@@ -56,57 +56,115 @@ def SCF2019_weights_load(targetdir):
     
     return SCF2019_weights
 
-def CPS_2020_raw(targetdir, list_of_mmmyy, series):
+def CPS_raw(targetdir, list_of_mmmyyyy, series):
     
-    ## Retrieves variables of interest
-    dd_sel_var = CPS_vars(targetdir, series)
+    ### Retrieves monthly CPS data
     
     
-    ## Stack together data with series of intereest
+    # Begin stack of data with series of intereest
     dfs=[]
     
     # loops through data to get individual dataframes
-    for mmmyy in list_of_mmmyy:
+    for mmmyyyy in list_of_mmmyyyy:
         # converts input to lowercase
-        mmmyy = mmmyy.lower()
+        mmmyyyy = mmmyyyy.lower()
+        
+        ## Retrieves variables of interest for given month
+        dd_sel_var = CPS_vars(targetdir, mmmyyyy, series)
             
         # Saves CPS data for given month
-        targetfile = targetdir + f'CPS-{mmmyy}.zip'
+        targetfile = targetdir + f'CPS-{mmmyyyy}.zip'
 
         # URL for given month
-        url = f'https://www2.census.gov/programs-surveys/cps/datasets/2020/basic/{mmmyy}pub.zip'
+        url = f'https://www2.census.gov/programs-surveys/cps/datasets/{mmmyyyy[-4:]}/basic/{mmmyyyy[0:3] + mmmyyyy[5:7]}pub.zip'
 
         # Extract files and return locations  
         file_locs = URL_DL_ZIP(targetfile, targetdir, url)
 
         # Convert raw data into a list of tuples
-        data_final = [tuple(int(line[i[1]:i[2]]) for i in dd_sel_var) 
-                for line in open(file_locs[0], 'rb')]
+        data_final = [tuple(int(line[i[1]:i[2]])
+                            # Account for insertion of * in .dat file HUSPNISH (2007)
+                            if line[i[1]:i[2]] != bytes('* ', encoding='iso-8859-1') 
+                            else -1
+                            for i in dd_sel_var
+                           ) 
+                      for line in open(file_locs[0], 
+                                             'rb')]
 
         # Convert to pandas dataframe, add variable ids as heading
         CPS_df = pd.DataFrame(data_final, columns=[v[0] for v in dd_sel_var])
             
         dfs.append(CPS_df)
     
+    # Merge stack
     df = pd.concat(dfs)
      
     return df
 
-def CPS_vars(targetdir, series):
+def CPS_vars(targetdir, mmmyyyy, series):
     
-    ## Retrieves variables of interest
-    # Download and open data dictionary 
-    url = 'https://www2.census.gov/programs-surveys/cps/datasets/2020/basic/2020_Basic_CPS_Public_Use_Record_Layout_plus_IO_Code_list.txt'
-    dd_file = targetdir + '2020_01_CPS_DataDict.txt'
+    ### Retrieves variables of interest
+    
+    ## Download relevant data dictionary 
+    # Parsing out mmmyyyy for use
+    yyyy = int(mmmyyyy[-4:])
+    mmmyy = mmmyyyy[0:3] + mmmyyyy[5:7]
+    mmm = mmmyyyy[0:3]
+    monthdict = {'jan': 1, 
+                 'feb': 2, 
+                 'mar': 3, 
+                 'apr': 4, 
+                 'may': 5,
+                 'jun': 6,
+                 'jul': 7,
+                 'aug': 8,
+                 'sep': 9,
+                 'oct': 10,
+                 'nov': 11,
+                 'dec': 12}
+    # Relevant URLs
+    if yyyy == 2020: 
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2020/basic/2020_Basic_CPS_Public_Use_Record_Layout_plus_IO_Code_list.txt'
+    elif yyyy > 2016:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2017/basic/January_2017_Record_Layout.txt'
+    elif yyyy > 2014:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2015/basic/January_2015_Record_Layout.txt'
+    elif yyyy > 2013:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2014/basic/January_2014_Record_Layout.txt'
+    elif yyyy > 2012:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2013/basic/January_2013_Record_Layout.txt'
+    elif (yyyy == 2012) & (monthdict[mmm] > 4):
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2012/basic/may12dd.txt'
+    elif yyyy > 2009:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2010/basic/jan10dd.txt'
+    elif yyyy > 2008:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2009/basic/jan09dd.txt'
+    elif yyyy > 2006:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2007/basic/jan07dd.txt'
+    elif yyyy > 1997:
+        url = 'https://www2.census.gov/programs-surveys/cps/datasets/2002/basic/jan98dd.asc'
+        
+    # Create file
+    
+    dd_file = targetdir + f'{yyyy}_{mmm}_CPS_DataDict.txt'
     urllib.request.urlretrieve(url, dd_file)
+    
+    ## Open file and parse out relevant lines  
+    
     dd_full = open(dd_file, 'r', encoding='iso-8859-1').read()
-
-    # Regular expression finds rows with variable location details
-    p = re.compile('\n(\w+)\s+(\d+)\s+(.*?)\t+.*?(\d\d*).*?(\d\d+)')
+    if yyyy > 2008:
+        p = re.compile('\n(\w+)\s+(\d+)\s+(.*?)(?!\s\d)\s+(\d\d*).*?(\d\d+)')
+    elif yyyy > 2002:
+        p = re.compile('\n(\w+)\s+(\d+)\s+(.*?)\s+\((\d\d*).*?(\d\d+)\)')
+    else:
+        p = re.compile('\n[D]\s+(\w*)\s+(\d*)\s+(\d*)\n[T]\s(.*?)\n')
+    
+        
     data = p.findall(dd_full)
     
+    ## Retrive list of relevant vars based on series arg
     series_final = []
-    if series == None:
+    if (series == None) & (yyyy > 2002):
         # Import all vars as pd.df
         df_vars = pd.DataFrame(data, 
                                columns = ['name', 
@@ -118,18 +176,48 @@ def CPS_vars(targetdir, series):
         df_vars = df_vars[
             (df_vars.name != 'FILLER') 
             & (df_vars.name != 'PADDING')]
+        df_vars['name'] = df_vars['name'].str.strip()
         
         series_final = df_vars['name'].tolist()
+    
+    elif series == None:
+         # Import all vars as pd.df
+        df_vars = pd.DataFrame(data, 
+                               columns = ['name',
+                                          'size', 
+                                          'loc_range_min',
+                                          'description'])
+        # Clean df and convert into list
+        df_vars = df_vars[
+            (df_vars.name != 'FILLER') 
+            & (df_vars.name != 'PADDING')]
+        df_vars['name'] = df_vars['name'].str.strip()
+        
+        series_final = df_vars['name'].tolist()      
         
     else:
         # Import only series vars
         for i in series:
             series_final.append(i.upper())
-
-    # Keep adjusted results for series of interest
-    dd_sel_var = [(i[0], int(i[3])-1, int(i[4])) 
-                  for i in p.findall(dd_full) if i[0] in series_final]
-
+    
+    ## Create list of tuples with vars and locs to retrieve from .dat
+    dd_sel_var = []
+    for i in p.findall(dd_full):
+        if yyyy > 1998:
+            loc = [int(i[1]), int(i[2])]
+        else:
+            loc = [int(i[3]), int(i[4])] 
+        
+               
+        if i[0] in series_final:
+            ## Account for certain data dict errors
+            if loc[0] == loc[1]:
+                dd_sel_var.append((i[0], loc[0], loc[1]+2))
+            else:
+                dd_sel_var.append((i[0], loc[0]-1, loc[1]))
+                    
+                                  
+                                  
     return dd_sel_var
 
 # UNUSED FUNCS
