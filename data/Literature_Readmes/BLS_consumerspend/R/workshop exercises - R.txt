@@ -1,0 +1,172 @@
+# Set the working directory. This should be the directory where the data are
+# stored.
+setwd("c:/ce pumd - eea")
+
+################################################################################
+# PROJECT 1                                                                    #
+# Interview: Calculating mean food at home expenditures with summary variables #
+#                                                                              #
+################################################################################
+
+# Read in the 2014 Q1 FMLI file and convert variable names to lower case
+fmli141x <- read.csv("fmli141x.csv")
+names(fmli141x) <- tolower(names(fmli141x))
+
+
+
+#### First calculate mean food at home expenditures for all CU's
+
+# Print the number of households for all CU's and CU's that reported food at
+# home expenditures
+nrow(fmli141x)
+nrow(fmli141x[fmli141x$fdhome > 0, ])
+
+# Sum the food at home expenditures from the previous and current quarters
+fmli141x$fdhome <- rowSums(fmli141x[, c("fdhomepq", "fdhomecq")], na.rm = T)
+
+# Sum total food at home expenditures
+totfdhome <- sum(fmli141x$fdhome)
+totfdhome
+
+# Calculate mean total food at home expenditures for all CU's
+round(totfdhome / nrow(fmli141x), 2)
+
+# ... excluding CU's that did not report food at home expenditures
+round(totfdhome / nrow(fmli141x[fmli141x$fdhome > 0, ]), 2)
+
+
+
+### Now calculate the mean food at home expenditures for a 3-person household
+
+
+
+# Subset the fmli141x data to 3-person households by "setting fam_size" to 3
+fmli141.hh3p <- fmli141x[fmli141x$fam_size %in% "3", ]
+nrow(fmli141.hh3p)
+
+# Print the number of 3-person households as well as those that reported food at
+# home expenditures
+nrow(fmli141.hh3p)
+nrow(fmli141.hh3p[fmli141.hh3p$fdhome > 0, ])
+
+# Sum the food at home expenditures from the previous and current quarters
+fmli141.hh3p$fdhome <- rowSums(fmli141.hh3p[, c("fdhomepq", "fdhomecq")],
+                               na.rm = T)
+
+# Sum total food at home expenditures
+totfdhome.hh3p <- sum(fmli141.hh3p$fdhome)
+totfdhome.hh3p
+
+# Mean food at home expenditures for 3-person households
+totfdhome.hh3p / nrow(fmli141.hh3p)
+
+# ... excluding CU's that did not report food at home expenditures
+totfdhome.hh3p / nrow(fmli141.hh3p[fmli141.hh3p$fdhome > 0, ])
+
+
+
+################################################################################
+# PROJECT 2                                                                    #
+# Interview: Calculating mean food at home expenditures with the MTBI file     #
+#                                                                              #
+################################################################################
+
+# Install and load the dplyr package for grouping data and the stringr for
+# manipulation of character objects
+if(!("dplyr" %in% installed.packages())) {
+    install.packages("dplyr", dependencies = TRUE)
+}
+
+if(!("stringr" %in% installed.packages())) {
+    install.packages("stringr", dependencies = TRUE)
+}
+
+library(dplyr)
+library(stringr)
+
+# Store a vector of the UCC's for food at home expenditures
+fdhome.uccs <- c("790240", "190904")
+
+# Read in the 2014 Q1 MTBI file and convert variable names to lower case
+mtbi141x <- read.csv("mtbi141x.csv")
+names(mtbi141x) <- tolower(names(mtbi141x))
+
+# Ensure that UCC codes are 6 digits long by adding leading 0's where necessary
+mtbi141x$ucc <- str_pad(mtbi141x$ucc, width = 6, side = "left", pad = "0")
+
+# Keep only the food at home UCCs for the newid and cost columns
+mtbi141x <- filter(mtbi141x, ucc %in% fdhome.uccs) %>% select(newid, cost)
+
+# Sum the costs by newid
+mtbi141x <- group_by(mtbi141x, newid) %>% summarize(cost = sum(cost))
+
+# Print total food at home expenditures
+sum(mtbi141x$cost)
+
+# Print the number of households that reported food at home expenditures
+nrow(mtbi141x)
+
+# Calculate mean food at home expenditures
+sum(mtbi141x$cost) / nrow(mtbi141x)
+
+
+
+################################################################################
+# PROJECT 3                                                                    #
+# Diary: Calculating mean food at home expenditures with the MTBD file         #
+#                                                                              #
+################################################################################
+
+if(!("plotrix" %in% installed.packages())) install.packages("plotrix")
+library(plotrix)
+
+# Store the UCC's for expenditures on apples, oranges, and citrus fruits
+# excluding oranges
+apples <- "110110"
+oranges <- "110310"
+other_citrus <- "110510"
+
+# Read in the 2014 Q1 EXPD file and convert variable names to lower case
+expd141 <- read.csv("expd141.csv")
+names(expd141) <- tolower(names(expd141))
+
+# Ensure that UCC codes are 6 digits long by adding leading 0's where necessary
+expd141$ucc <- str_pad(expd141$ucc, width = 6, side = "left", pad = "0")
+
+# Keep only the relevant fruit UCCs for the newid and cost columns
+expd141 <- filter(expd141, ucc %in% c(apples, oranges, other_citrus)) %>%
+    select(newid, ucc, cost)
+
+# Generate new variables for the costs of each type of fruit
+expd141$apples <- ifelse(expd141$ucc %in% apples, expd141$cost, NA)
+expd141$oranges <- ifelse(expd141$ucc %in% oranges, expd141$cost, NA)
+expd141$other_citrus <- ifelse(expd141$ucc %in% other_citrus, expd141$cost, NA)
+expd141$all_citrus <- ifelse(expd141$ucc %in% c(oranges, other_citrus),
+                             expd141$cost, NA)
+expd141$apples_and_oranges <- ifelse(expd141$ucc %in% c(apples, oranges),
+                                     expd141$cost, NA)
+
+# Print the number of households that reported expenditures on apples, oranges,
+# or citrus fruits excluding oranges
+nrow(group_by(expd141, newid) %>% summarise(cost = sum(cost)))
+
+# Print total expenditures on apples, oranges, and citrus fruits excluding
+# oranges
+sum(group_by(expd141, newid) %>% summarise(cost = sum(cost)))
+
+# Sum the costs by newid
+expd141 <- group_by(expd141, newid, ucc) %>%
+    summarize(cost = sum(cost), apples = sum(apples), oranges = sum(oranges),
+              other_citrus = sum(other_citrus), all_citrus = sum(all_citrus),
+              apples_and_oranges = sum(apples_and_oranges))
+
+# Print a table containing a summary of the costs for each of the fruit
+# expenditure categories
+do.call(
+    rbind, lapply(expd141[4:8], function(x) {
+        c(N = length(x[!is.na(x)]),
+          summary(x),
+          Std_Err = std.error(x),
+          Sum = sum(x, na.rm = TRUE))
+    })
+)
