@@ -28,9 +28,81 @@ def URL_DL_ZIP(targetzip, targetdir, url):
 def RepresentsInt(s):
     try: 
         int(s)
-        return False
-    except ValueError:
         return True
+    except ValueError:
+        return False
+    
+def NYFedSCE_load(targetdir):
+    # Saves consumer expectation data as DF
+    targetexcel = targetdir + 'NYFedSCE_2017-present_data.xlsx'
+    url = 'https://www.newyorkfed.org/medialibrary/interactives/sce/sce/downloads/data/frbny-sce-public-microdata-complete-17-present.xlsx'
+
+    # Saving excel
+    urllib.request.urlretrieve(url, targetexcel)
+    
+    # Read as dataframe
+    df = pd.read_excel(targetexcel, skiprows=1)
+    
+    return df
+
+def Livingston_load(targetdir):
+    # Saves academic expectations as DF
+    targetexcel = targetdir + 'Livingston_allmicrodata.xlsx'
+    url = 'https://www.philadelphiafed.org/-/media/research-and-data/real-time-center/livingston-survey/historical-data/individualdata.xlsx?la=en'
+
+    # Saving excel
+    urllib.request.urlretrieve(url, targetexcel)
+    
+    # Read as dataframe
+    df = pd.read_excel(targetexcel)
+    
+    return df
+
+def BLS_CES_load_qtr(targetdir, year, qtr, subset):
+    
+    # Retrieve URL and set target zip
+    yy = str(year)[-2:]
+    url = f'https://www.bls.gov/cex/pumd/data/stata/intrvw{yy}.zip'
+    targetzip = targetdir + f'BLS_CES_{year}.zip'
+    
+    # Retrieve files
+    CES_file_locs = URL_DL_ZIP(targetzip, targetdir, url) 
+    
+    # create df with relevant .dta files
+    target_len = len(targetdir + 'intrvw19/intrvw19/')
+    inter_df = pd.DataFrame
+    df = pd.DataFrame
+    for file in CES_file_locs:
+
+        # Use only .dta files that match subset arg
+        if ((file[:(target_len)] == (targetdir + 'intrvw19/intrvw19/'))
+            & (file[-3:] == 'dta')
+            & (file[target_len:target_len+4] == str(subset))
+            & (file[-5] == str(qtr))):
+            print(file)
+            # Read into pandas df    
+            df = pd.read_stata(
+                file,
+                columns=None)
+            
+            # Include source data
+            df['report_year'] = [int(file[target_len+4:target_len+6]) for i in range(df.shape[0])]
+            df['report_qtr'] = [int(file[-5]) if RepresentsInt(qtr) else 5 for i in range(df.shape[0])]
+            break
+
+
+    return df
+
+
+
+def UMich_load():
+    # Saves UMich consumer expec. data as df
+    targetcsv = 'data/external/UMich_Consumers.csv'
+    
+    # Read as dataframe
+    df = pd.read_csv(targetcsv)
+    
+    return df
 
 def SCF_load_stata(targetdir, year, series):
     ## Saves SCF data from 1989 as df
@@ -88,19 +160,7 @@ def SHED_load_stata(targetdir, year, series, month_supp):
         
     return SHED_data
 
-def SCF2019_weights_load(targetdir):
-    # Saves SCF2019 data revised weights as stata file 
-    targetzip = targetdir + 'SCF2019_data_public_weights.zip'
-    url = 'https://www.federalreserve.gov/econres/files/scf2019rw1s.zip'
 
-    # Extract files and return locations  
-    SCF_file_locs = URL_DL_ZIP(targetzip, targetdir, url)
-    
-    # Read in file to dataframe    
-    SCF2019_weights = pd.read_stata(
-        SCF_file_locs[0])
-    
-    return SCF2019_weights
 
 def CPS_raw(targetdir, list_of_mmmyyyy, series):
     
@@ -137,7 +197,7 @@ def CPS_raw(targetdir, list_of_mmmyyyy, series):
                            # Account for insertion of chars in .dat file 
                            if 
                            (
-                               RepresentsInt(line[i[1]:i[2]])
+                               not(RepresentsInt(line[i[1]:i[2]]))
                            )
                            else int(line[i[1]:i[2]])
                               
@@ -327,4 +387,17 @@ def UI_demo_data_to_df(targetdir):
     
     return df
 
+def SCF2019_weights_load(targetdir):
+    # Saves SCF2019 data revised weights as stata file 
+    targetzip = targetdir + 'SCF2019_data_public_weights.zip'
+    url = 'https://www.federalreserve.gov/econres/files/scf2019rw1s.zip'
+
+    # Extract files and return locations  
+    SCF_file_locs = URL_DL_ZIP(targetzip, targetdir, url)
+    
+    # Read in file to dataframe    
+    SCF2019_weights = pd.read_stata(
+        SCF_file_locs[0])
+    
+    return SCF2019_weights
 

@@ -1,0 +1,149 @@
+********************************************************************************
+* PROJECT 1                                                                    *
+* Interview: Calculating mean food at home expenditures with summary variables *
+*                                                                              *
+********************************************************************************
+
+OPTIONS NOCENTER;
+
+LIBNAME IN141 "C:/LOCATION OF DATA FILES";
+
+/* Read in the 2014 Q1 FMLI file and create the FDHOME variable */
+
+DATA FMLI;
+	SET IN141.FMLI141X (KEEP = FDHOMEPQ FDHOMECQ FAM_SIZE);
+	FDHOME = FDHOMECQ + FDHOMEPQ;
+RUN;
+
+/* Run the means procedure for FDHOME summary variable */
+
+PROC MEANS DATA = FMLI (KEEP = FDHOME) MEAN; 
+RUN;
+
+/* Create FDHOME data for only those reporting an expenditure */
+
+DATA FDHOME_GT_0;
+	SET FMLI;
+	IF FDHOME > 0;
+RUN;
+
+/* Run the means procedure for FDHOME summary variable */
+
+PROC MEANS DATA = FDHOME_GT_0 (KEEP = FDHOME) MEAN; RUN;
+
+/* Restrict dataset to just those CUs with 3 people */
+
+DATA FMLI;
+	SET FMLI;
+	IF FAM_SIZE = 3;
+RUN;
+
+/* Run the means procedure for FDHOME summary variable */
+
+PROC MEANS DATA = FMLI (KEEP = FDHOME) MEAN; 
+RUN;
+
+/* Restrict dataset to just those CUs with 3 people and those reporting an 
+expenditure */
+
+DATA FDHOME_GT_0;
+	SET FDHOME_GT_0;
+	IF FAM_SIZE = 3;
+RUN;
+
+/* Run the means procedure for FDHOME summary variable */
+
+PROC MEANS DATA = FDHOME_GT_0 (KEEP = FDHOME) MEAN; 
+RUN;
+
+********************************************************************************
+* PROJECT 2                                                                    *
+* Interview: Calculating mean food at home expenditures with the MTBI file     *
+*                                                                              *
+********************************************************************************
+
+OPTIONS NOCENTER;
+
+LIBNAME IN141 "C:/LOCATION OF DATA FILES";
+
+/* Read in the 2014 Q1 EXPD file keeping only necessary UCCs */
+
+DATA MTBI;
+	SET IN141.MTBI141X (KEEP = NEWID UCC COST);
+	IF UCC IN ("790240", "190904");
+RUN;
+
+/* Sum the cost by newid */
+
+PROC MEANS DATA = MTBI;
+	CLASS NEWID;
+	VAR COST;
+	OUTPUT OUT = MTBI (DROP = _TYPE_ _FREQ_) SUM = COST;
+RUN;
+
+/* Remove missing newid generated as the sum total of the column vector */
+
+DATA MTBI;
+	SET MTBI;
+	IF NEWID ^= .;
+RUN;
+
+/* Run the means procedure for the summed costs by newid */
+
+PROC MEANS DATA = MTBI (KEEP = COST) MEAN; 
+RUN;
+
+********************************************************************************
+* PROJECT 3                                                                    *
+* Diary: Calculating mean food at home expenditures with the EXPD file         *
+*                                                                              *
+********************************************************************************
+
+OPTIONS NOCENTER;
+
+LIBNAME IN141 "C:/LOCATION OF DATA FILES";
+
+
+/* Read in the 2014 Q1 EXPD file */
+
+DATA EXPD;
+   SET IN141.EXPD141 (KEEP=NEWID UCC COST);
+
+/* Keep only the relevant fruit UCCs for the newid and COST columns */
+
+   IF UCC IN ("110110","110310","110510");
+   IF UCC="110110" THEN APPLES=COST;
+      ELSE IF UCC="110310" THEN ORANGES=COST;
+	  ELSE IF UCC="110510" THEN OTHER_CITRUS=COST;
+RUN;
+
+/* Sort data by newid */
+
+PROC SORT DATA=EXPD;
+   BY NEWID;
+RUN;
+
+/* Sum the costs by newid */
+
+PROC SUMMARY NWAY DATA=EXPD;
+   BY NEWID;
+   VAR APPLES ORANGES OTHER_CITRUS;
+   OUTPUT OUT=EXPD_SUM
+   SUM=;
+RUN;
+
+/* Compute amount each CU spent on relevant fruit combinations. */
+
+DATA FRUIT_EXPENDITURES;
+   SET EXPD_SUM;
+
+   ALL_CITRUS=SUM(ORANGES,OTHER_CITRUS);
+
+   APPLES_AND_ORANGES=SUM(APPLES,ORANGES);
+RUN;
+
+/* Run the means procedure for the computed variables */
+
+PROC MEANS DATA=FRUIT_EXPENDITURES (DROP=NEWID) N MEAN STDERR MIN MAX SUM;
+RUN;
+

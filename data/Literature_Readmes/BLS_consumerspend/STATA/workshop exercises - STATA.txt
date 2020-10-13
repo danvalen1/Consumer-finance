@@ -1,0 +1,101 @@
+* Set the working directory. This should be the directory where the data are
+* stored.
+global dataPath = "PATHWAY"
+
+********************************************************************************
+* PROJECT 1                                                                    *
+* Interview: Calculating mean food at home expenditures with summary variables *
+*                                                                              *
+********************************************************************************
+
+* Read in the 2014 Q1 FMLI file
+use "PATHWAY\fmli141x.dta"
+
+
+**** First calculate mean food at home expenditures for all CUs
+
+* Sum the food at home expenditures from the previous and current quarters.
+gen fdhome = fdhomecq + fdhomepq
+
+* Print the number of households for all CUs and CUs that reported food at
+* home expenditures.
+gen count = 1 if fdhome != 0
+replace count = 0 if fdhome == 0
+tab count
+
+* Calculate mean total food at home expenditures for all CU's
+summarize fdhome
+
+* ... excluding CU's that did not report food at home expenditures
+preserve
+drop if count == 0
+summarize fdhome
+
+
+*** Now calculate the mean food at home expenditures for a 3-person household
+
+
+* Subset the fmli141x data to 3-person households by "setting fam_size" to 3
+preserve
+drop if fam_size != 3
+
+* Print the number of 3-person households as well as those that reported food at
+* home expenditures
+tab count
+
+* Mean food at home expenditures for 3-person households
+summarize fdhome
+
+* ... excluding CU's that did not report food at home expenditures
+drop if count == 0
+summarize fdhome
+restore
+
+********************************************************************************
+* PROJECT 2                                                                    *
+* Interview: Calculating mean food at home expenditures with the MTBI file     *
+*                                                                              *
+********************************************************************************
+
+* Read in the 2014 Q1 MTBI file
+use "PATHWAY\mtbi141x.dta"
+
+* Keep only the food at home UCCs for the newid and cost columns
+keep if ucc == "790240" | ucc == "190904"
+
+* Sum the costs by newid
+collapse(sum) cost, by(newid)
+
+* Calculate mean food at home expenditures
+summarize cost
+
+
+********************************************************************************
+* PROJECT 3                                                                    *
+* Diary: Calculating mean food at home expenditures with the EXPD file         *
+*                                                                              *
+********************************************************************************
+
+* Read in the 2014 Q1 EXPD file
+use "PATHWAY\expd141.dta"
+
+* Keep only the relevant fruit UCCs for the newid and COST columns
+keep if ucc == "110110" | ucc == "110310" | ucc == "110510"
+
+* Generate new variables for the costs of each type of fruit
+gen all = cost
+gen apples = cost if ucc == "110110"
+gen oranges = cost if ucc == "110310"
+gen other_citrus = cost if ucc == "110510"
+gen all_citrus = cost if ucc == "110310" | ucc == "110510"
+gen apples_oranges = cost if ucc == "110110" | ucc == "110310"
+
+* Sum the costs by newid
+
+collapse(sum) all apples oranges other_citrus all_citrus apples_oranges, by(newid)
+
+* Print a table containing a summary of the costs for each of the fruit
+* expenditure categories
+
+recode * (0=.)
+summarize all apples oranges other_citrus all_citrus apples_oranges
