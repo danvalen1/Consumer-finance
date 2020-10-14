@@ -4,9 +4,7 @@ import pandas as pd
 import re
 import os
 import sys
-module_path = os.path.abspath(os.path.join(os.pardir, os.pardir))
-if module_path not in sys.path:
-    sys.path.append(module_path)
+
 
 def URL_DL_ZIP(targetzip, targetdir, url):
     # Saving Zip file
